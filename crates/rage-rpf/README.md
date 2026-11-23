@@ -8,6 +8,7 @@ Read and write RAGE archives, part of
 | RPF7 (incl. nested archives, AES and NG encryption) | GTA V Legacy and Enhanced | yes | yes |
 | IMG3, RPF2, RPF3 | GTA IV | yes | yes |
 | RPF8 | Red Dead Redemption 2 | with the `rdr2` feature | no |
+| RPF9 (Scarlett 1.0.2.1) | TOC, hash listing, raw/decoded export | partial | no |
 
 `vfs` resolves paths that cross archive boundaries
 (`update/update.rpf/x64/data/lang/americandlc.rpf/global.gxt2`).
@@ -23,6 +24,23 @@ for id in rpf.children(rage_rpf::Rpf7::ROOT) {
 Untrusted archives are expected: nesting depth (`MAX_NESTING`) and unpacked
 sizes (`MAX_UNPACKED`) are limited, and `vfs::safe_relative_path` must be used
 for every extraction path.
+
+## Experimental RPF9 support
+
+`rpf9::Archive` reads the encrypted TOC and lists logical entries by their
+stored hashes. It exports raw allocations or supported decoded files using
+per-entry selective TFIT-CTR and block decompression. Metadata and payload I/O
+are bounded; the reader never loads a whole game archive into memory.
+
+`rpf9_exe` reads only the necessary ranges from the user's Scarlett 1.0.2.1
+PE and validates cipher material with SHA-256 fingerprints. No game keys,
+IVs, tables, executable bytes or archive fixtures are shipped.
+
+Use `openrage rpf9 --help` for inspection and export. See [RPF9.md](RPF9.md)
+for native evidence, validation coverage and remaining unsupported layouts.
+The application-facing `Rpf9` adapter uses the TOC for VFS/GUI browsing,
+candidate-name lookup and directly stored nested archives. Editing and writing
+remain unsupported.
 
 ## The `rdr2` feature and its licence
 

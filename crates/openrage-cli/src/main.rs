@@ -107,6 +107,10 @@ fn run() -> Result<()> {
         return Ok(());
     }
 
+    if let Command::Ttpf { path, export, from, count, max_side } = &cli.command {
+        return cmd_ttpf(path, export.as_deref(), *from, *count, *max_side);
+    }
+
     if let Command::Rpf8 { path, list, textures, models, text, meta, rebuild, audio, anims } = &cli.command {
         let checks = Checks {
             textures: *textures,
@@ -118,6 +122,18 @@ fn run() -> Result<()> {
             anims: *anims,
         };
         return cmd_rpf8(path, *list, checks);
+    }
+    if let Command::Rpf9 { path, exe, nested, names, list, extract_raw, extract, output } = &cli.command {
+        return cmd_rpf9(
+            path,
+            exe.as_deref(),
+            nested,
+            names.as_deref(),
+            *list,
+            *extract_raw,
+            *extract,
+            output.as_deref(),
+        );
     }
     // Managing plugins needs no game; previews and actions use it when there is one.
     if let Command::Plugin(cmd) = &cli.command
@@ -159,10 +175,31 @@ fn run() -> Result<()> {
         eprintln!("warning: {e}");
         None
     });
+    // GTA VI archives are read through once to find their files; say so.
+    openrage_app::rpf9::register(Arc::new(|step| {
+        use std::io::IsTerminal;
+        static SHOWN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(u64::MAX);
+        let err = std::io::stderr();
+        match step {
+            Some((name, 0, _)) => {
+                eprintln!("Indexing {name}: reading the whole archive once, the result is kept for next time.");
+            }
+            Some((_, done, total)) if err.is_terminal() && total > 0 => {
+                let percent = done * 100 / total;
+                if SHOWN.swap(percent, std::sync::atomic::Ordering::Relaxed) != percent {
+                    eprint!("\r{percent:>3} %");
+                }
+            }
+            None if err.is_terminal() => eprint!("\r      \r"),
+            _ => {}
+        }
+    }));
 
     match cli.command {
         Command::Keys { .. }
         | Command::Rpf8 { .. }
+        | Command::Rpf9 { .. }
+        | Command::Ttpf { .. }
         | Command::Rdr2Keys { .. }
         | Command::Rdr2Names { .. }
         | Command::Licenses { .. } => {
